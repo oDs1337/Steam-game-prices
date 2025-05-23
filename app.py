@@ -3,10 +3,19 @@ from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
-
 CORS(app, origins=['http://localhost:4200'])
 
 COUNTRIES = ['us', 'gb', 'de', 'fr', 'pl', 'ru', 'br', 'au', 'jp', 'kr', 'ca', 'se', 'no', 'cz', 'hu', 'cn', 'it', 'es', 'nl', 'mx']
+
+def get_ppp(country_code):
+    try:
+        url = f"https://api.worldbank.org/v2/country/{country_code.upper()}/indicator/PA.NUS.PPP?format=json&per_page=1"
+        res = requests.get(url, timeout=5)
+        data = res.json()
+        return float(data[1][0]['value'])
+    except Exception as e:
+        print(f"PPP fetch error for {country_code.upper()}: {e}")
+        return None
 
 @app.route('/api/get_prices', methods=['POST'])
 def get_prices():
@@ -26,13 +35,24 @@ def get_prices():
                 price_info = game_data['data'].get('price_overview', {})
                 final_price = price_info.get('final')
                 if final_price:
+                    final_price = final_price / 100
+                    ppp = get_ppp(cc)
+                    price_adjusted = round(final_price / ppp, 2) if ppp else None
+
                     prices.append({
                         'country': cc.upper(),
                         'currency': price_info.get('currency'),
-                        'price': final_price / 100
+                        'price': final_price,
+                        'price_ppp_usd': price_adjusted
                     })
         except Exception as e:
+            print(f"Error fetching for {cc}: {e}")
             continue
 
-    sorted_prices = sorted(prices, key=lambda x: x['price'])
+    prices = [p for p in prices if p['price_ppp_usd'] is not None]
+    sorted_prices = sorted(prices, key=lambda x: x['price_ppp_usd'])
+
     return jsonify(sorted_prices)
+
+if __name__ == '__main__':
+    app.run(debug=True)
