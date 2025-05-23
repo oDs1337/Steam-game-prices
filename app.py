@@ -1,7 +1,10 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 import requests
 
 app = Flask(__name__)
+
+CORS(app, origins=['http://localhost:4200'])
 
 COUNTRIES = ['us', 'gb', 'de', 'fr', 'pl', 'ru', 'br', 'au', 'jp', 'kr', 'ca', 'se', 'no', 'cz', 'hu', 'cn', 'it', 'es', 'nl', 'mx']
 
@@ -32,5 +35,4 @@ def get_prices():
             continue
 
     sorted_prices = sorted(prices, key=lambda x: x['price'])
-    print(sorted_prices)
     return jsonify(sorted_prices)
